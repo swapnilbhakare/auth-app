@@ -1,53 +1,68 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useContext } from "react";
+import { useHistory } from "react-router-dom";
+import AuthContext from "../../store/auth-context";
 
 import classes from "./AuthForm.module.css";
 
 const AuthForm = () => {
+  const history = useHistory();
   const emailInputRef = useRef();
   const passwordInputRef = useRef();
 
+  const authCtx = useContext(AuthContext);
+
   const [isLogin, setIsLogin] = useState(true);
-  const [isLoading, setIsLoading] = useState();
+  const [isLoading, setIsLoading] = useState(false);
+
   const switchAuthModeHandler = () => {
     setIsLogin((prevState) => !prevState);
   };
+
   const submitHandler = (event) => {
     event.preventDefault();
-    const enterdEmail = emailInputRef.current.value;
-    const enterdPassword = passwordInputRef.current.value;
-
+    const enteredEmail = emailInputRef.current.value;
+    const enteredPassword = passwordInputRef.current.value;
     setIsLoading(true);
+    let url;
     if (isLogin) {
+      url =
+        "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyA8Uvdj7Lw5usuu4YQ-5EXSC4KGgkZXCv4";
     } else {
-      fetch(
-        "https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=AIzaSyA8Uvdj7Lw5usuu4YQ-5EXSC4KGgkZXCv4",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            email: enterdEmail,
-            password: enterdPassword,
-            returnSecureToken: true,
-          }),
-          headers: {
-            "content-type": "application/json",
-          },
-        }
-      ).then((res) => {
+      url =
+        "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyA8Uvdj7Lw5usuu4YQ-5EXSC4KGgkZXCv4";
+    }
+    fetch(url, {
+      method: "POST",
+      body: JSON.stringify({
+        email: enteredEmail,
+        password: enteredPassword,
+        returnSecureToken: true,
+      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) => {
         setIsLoading(false);
         if (res.ok) {
-          // ..
+          return res.json();
         } else {
-          res.json().then((data) => {
-            // show an error modal
-            let errorMessage = "Authentication failed!";
-            // if (data && data.error && data.error.message) {
-            //   errorMessage = data.error.errorMessage;
-            // }
-            alert(errorMessage);
+          return res.json().then((data) => {
+            let errorMessage = "Authentication Failed !";
+            /*if (data && data.error && data.error.message) {
+            errorMessage = data.error.message;
+          }*/
+            throw new Error(errorMessage);
           });
         }
+      })
+      .then((data) => {
+        authCtx.login(data.idToken);
+        history.replace("/");
+      })
+      .catch((err) => {
+        alert(err.message);
       });
-    }
   };
   return (
     <section className={classes.auth}>
@@ -70,7 +85,7 @@ const AuthForm = () => {
           {!isLoading && (
             <button>{isLogin ? "Login" : "Create Account"}</button>
           )}
-          {isLoading && <p>Sending Requerst...</p>}
+          {isLoading && <p>Sending Request...</p>}
           <button
             type="button"
             className={classes.toggle}
